@@ -1,0 +1,53 @@
+pipeline { 
+    agent any 
+    
+    stages { 
+        stage('Clone the Repo') { 
+            steps { 
+                git branch: 'main', url: 'https://github.com/Umair1012/django-notes-app' 
+            } 
+        } 
+        
+        stage('Install Dependencies') { 
+            steps { 
+                sh '''
+                    python3 -m venv venv
+                    . venv/bin/activate
+                    pip install --upgrade pip
+                    pip install -r requirements.txt
+                '''
+            } 
+        }
+        
+        stage('Run Database Migrations') { 
+            steps { 
+                sh '''
+                    . venv/bin/activate
+                    python manage.py makemigrations
+                    python manage.py migrate
+                '''
+            } 
+        }
+        
+        stage('Run Django App') {
+            steps {
+                sh '''
+                    # 1. Activate the python virtual environment
+                    . venv/bin/activate
+                    
+                    # 2. Kill any old Django app running on port 8000 so the port is completely free
+                    sudo kill -9 $(sudo lsof -t -i:8000) 2>/dev/null || true
+                    
+                    # 3. Tell Jenkins NOT to stop this background process when the build ends
+                    export JENKINS_NODE_COOKIE=dontKillMe
+                    
+                    # 4. Start Django and COMPLETELY disconnect it from the Jenkins terminal session
+                    nohup python manage.py runserver 0.0.0.0:8000 > django.log 2>&1 < /dev/null &
+                    
+                    # 5. Wait 2 seconds to let the application boot up cleanly
+                    sleep 2
+                '''
+            }
+        }
+    } 
+}
