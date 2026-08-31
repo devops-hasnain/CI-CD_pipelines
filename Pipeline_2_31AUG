@@ -1,0 +1,58 @@
+pipeline { 
+    agent any 
+    environment { 
+        Dockerhub_credentials_id = "docker_withJenkins" 
+        IMAGE_NAME = 'hasnainjanjua/jenkins-docker' 
+    } 
+    stages { 
+        stage('Clonning the repo') { 
+            steps { 
+               
+                git branch: 'main', url: 'https://github.com/umair1012/three-tier-app' 
+            } 
+        } 
+        stage('Building Docker Image') { 
+            steps { 
+                script {
+                    env.IMAGE_TAG = "${IMAGE_NAME}:${env.BUILD_NUMBER}"
+                }
+                // Enters the 'mynotes' directory where  actual Dockerfile lives
+                dir('mynotes') {
+                    sh "docker build -t ${env.IMAGE_TAG} ." 
+                }
+            } 
+        } 
+        stage('Logging to DockerHub') { 
+            steps { 
+                withCredentials([usernamePassword( 
+                    credentialsId: "${Dockerhub_credentials_id}", 
+                    usernameVariable: "DOCKER_USER", 
+                    passwordVariable: "DOCKER_PASS" 
+                )]) { 
+                    // Safely escapes the credentials to keep logs clear and secure
+                    sh "echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin" 
+                } 
+            } 
+        } 
+        stage('Pushing Image to DockerHub') { 
+            steps { 
+                sh "docker push ${env.IMAGE_TAG}" 
+            } 
+        } 
+        stage('Running 2 Docker Containers') { 
+            steps { 
+               
+                sh "docker run -d -p 8001:8000 --name dev_container ${env.IMAGE_TAG}" 
+                sh "docker run -d -p 8002:8000 --name stage_container ${env.IMAGE_TAG}" 
+            } 
+        } 
+    }
+    post { 
+        success { 
+            echo "Running: Dev on 8001 & Stage on 8002" 
+        } 
+        failure { 
+            echo "Deployment Failed :|" 
+        } 
+    } 
+}
