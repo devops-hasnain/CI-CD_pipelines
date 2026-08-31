@@ -8,7 +8,7 @@ pipeline {
         stage('Clonning the repo') { 
             steps { 
                
-                git branch: 'main', url: 'https://github.com/umair1012/three-tier-app' 
+                                git branch: 'main', url: 'https://github.com/Umair1012/django-notes-app' 
             } 
         } 
         stage('Building Docker Image') { 
